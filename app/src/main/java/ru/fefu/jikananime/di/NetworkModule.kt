@@ -29,37 +29,10 @@ object NetworkModule {
 
         return OkHttpClient.Builder()
             .addInterceptor(logging)
-            .connectTimeout(120, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(120, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
-            .addInterceptor { chain ->
-                var attempt = 0
-                var response: okhttp3.Response? = null
-                val maxAttempts = 5
-
-                while (attempt < maxAttempts) {
-                    try {
-                        response = chain.proceed(chain.request())
-                        if (response.isSuccessful) {
-                            break
-                        }
-                    } catch (e: Exception) {
-                    }
-
-                    attempt++
-                    if (attempt < maxAttempts) {
-                        try {
-                            Thread.sleep(2000)
-                        } catch (e: InterruptedException) {
-                            Thread.currentThread().interrupt()
-                            break
-                        }
-                    }
-                }
-
-                response ?: throw java.net.SocketTimeoutException("Connection error")
-            }
             .build()
     }
 

@@ -47,7 +47,7 @@ fun NavGraph(
             val animeId = backStackEntry.arguments?.getInt("animeId") ?: 0
             val viewModel: DetailViewModel = hiltViewModel()
             DetailScreen(
-                state = viewModel.state.value,
+                state = viewModel.state,
                 onEvent = viewModel::onEvent,
                 onBackClick = { navController.popBackStack() }
             )
@@ -56,7 +56,7 @@ fun NavGraph(
         composable(route = Screen.Favourites.route) {
             val viewModel: FavouritesViewModel = hiltViewModel()
             FavouritesScreen(
-                state = viewModel.state.value,
+                state = viewModel.state,
                 onEvent = viewModel::onEvent,
                 onAnimeClick = { animeId ->
                     navController.navigate(Screen.Detail.createRoute(animeId))

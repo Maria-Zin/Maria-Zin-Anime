@@ -1,7 +1,6 @@
 package ru.fefu.jikananime.presentation.screens.detail
 
-import android.content.Context
-import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,11 +14,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.valentinilk.shimmer.shimmer
 import ru.fefu.jikananime.domain.model.Anime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,10 +36,10 @@ fun DetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Anime Details") },
+                title = { Text(state.anime?.title ?: "Детали") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {
@@ -45,183 +47,77 @@ fun DetailScreen(
                         IconButton(onClick = { onEvent(DetailEvent.OnToggleFavourite(anime.id)) }) {
                             Icon(
                                 imageVector = if (state.isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Favourite",
-                                tint = if (state.isFavourite)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface
+                                contentDescription = null,
+                                tint = if (state.isFavourite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                         }
-
-                        IconButton(onClick = {
-                            onEvent(DetailEvent.OnShare)
-                            shareAnime(context, anime)
-                        }) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
+                        IconButton(onClick = { shareAnime(context, anime) }) {
+                            Icon(Icons.Default.Share, contentDescription = null)
                         }
                     }
                 }
             )
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when {
-                state.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
+                state.isLoading -> DetailSkeleton()
                 state.errorMessage != null -> {
                     Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = state.errorMessage,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { onEvent(DetailEvent.OnRetry) }) {
-                            Text("Retry")
-                        }
+                        Text(state.errorMessage, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { onEvent(DetailEvent.OnRetry) }) { Text("Повторить") }
                     }
                 }
-
-                state.anime != null -> {
-                    DetailContent(
-                        anime = state.anime,
-                        isFavourite = state.isFavourite
-                    )
-                }
+                state.anime != null -> DetailContent(state.anime)
             }
         }
     }
 }
 
 @Composable
-fun DetailContent(
-    anime: Anime,
-    isFavourite: Boolean
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+fun DetailContent(anime: Anime) {
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
         item {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(anime.imageUrl)
-                    .crossfade(true)
-                    .build(),
+                model = ImageRequest.Builder(LocalContext.current).data(anime.imageUrl).crossfade(true).build(),
                 contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                modifier = Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
-        }
-
-        item {
-            Text(
-                text = anime.title,
-                style = MaterialTheme.typography.headlineSmall
-            )
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    InfoRow("Score", anime.scoreFormatted)
-                    InfoRow("Episodes", anime.episodesString)
-                    InfoRow("Year", anime.yearString)
-                    InfoRow("Status", anime.status ?: "Unknown")
-                    InfoRow("Rating", anime.rating ?: "Not rated")
-                    InfoRow("Duration", anime.duration ?: "Unknown")
-
-                    if (anime.genres.isNotEmpty()) {
-                        InfoRow("Genres", anime.genres.joinToString(", "))
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "Synopsis",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = anime.synopsis,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            Spacer(Modifier.height(16.dp))
+            Text(anime.title, style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(8.dp))
+            Text("Рейтинг: ${anime.scoreFormatted}", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(16.dp))
+            Text(anime.synopsis, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
 
 @Composable
-fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+fun DetailSkeleton() {
+    val shimmerModifier = Modifier.shimmer()
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Box(modifier = shimmerModifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(12.dp)).background(Color.LightGray))
+        Spacer(Modifier.height(16.dp))
+        Box(modifier = shimmerModifier.fillMaxWidth(0.6f).height(30.dp).background(Color.LightGray))
+        Spacer(Modifier.height(16.dp))
+        repeat(5) {
+            Box(modifier = shimmerModifier.fillMaxWidth().height(20.dp).padding(vertical = 4.dp).background(Color.LightGray))
+        }
     }
 }
 
-fun shareAnime(context: Context, anime: Anime) {
-    val shareText = """
-        Check out this anime: ${anime.title}
-        Score: ${anime.scoreFormatted}
-        Episodes: ${anime.episodesString}
-        Year: ${anime.yearString}
-        Synopsis: ${anime.synopsis.take(100)}...
-    """.trimIndent()
-
-    val sendIntent = Intent().apply {
-        action = Intent.ACTION_SEND
-        putExtra(Intent.EXTRA_TEXT, shareText)
+fun shareAnime(context: android.content.Context, anime: Anime) {
+    val sendIntent = android.content.Intent().apply {
+        action = android.content.Intent.ACTION_SEND
+        putExtra(android.content.Intent.EXTRA_TEXT, "Смотри аниме: ${anime.title}")
         type = "text/plain"
     }
-
-    val shareIntent = Intent.createChooser(sendIntent, "Share Anime")
-    context.startActivity(shareIntent)
+    context.startActivity(android.content.Intent.createChooser(sendIntent, null))
 }
